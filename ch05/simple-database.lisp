@@ -14,11 +14,11 @@
   (dolist (cd *db*)
     (format t "~{~a:~10t~a~%~}~%" cd)))
 
-(defun dump-db ()
-  (mapcar (lambda (x) (format t "~{~a:~10t~a~%~}~%" x)) *db*))
+; (defun dump-db ()
+;   (mapcar (lambda (x) (format t "~{~a:~10t~a~%~}~%" x)) *db*))
 
-(defun dump-db ()
-  (format t "~{~{~a:~10t~a~%~}~%~}" *db*))
+; (defun dump-db ()
+;   (format t "~{~{~a:~10t~a~%~}~%~}" *db*))
 
 ; P.50 Improving the User Interaction
 (defun prompt-read (prompt)
@@ -49,3 +49,48 @@
   (with-open-file (in filename)   ; input stream is the default
     (with-standard-io-syntax
       (setf *db* (read in)))))    ; 'read' corresponds to 'print'
+
+; Querying the Database p.54
+(defun select-by-artist (artist)
+  (remove-if-not (lambda (cd) (equal (getf cd :artist) artist))
+		 *db*))
+
+(defun select (selector-fn)
+  (remove-if-not selector-fn *db*))
+
+; test select function
+(select (lambda (cd) (equal (getf cd :artist) "Dixie Chicks")))
+
+(defun artist-selector (artist)
+  (lambda (cd) (equal (getf cd :artist) artist)))
+
+; test
+(select (artist-selector "Dixie Chicks"))
+
+(defun where (&key title artist rating (ripped nil ripped-p))
+  (lambda (cd)
+    (and
+     (if title    (equal (getf cd :title)  title)  t)
+     (if artist   (equal (getf cd :artist) artist) t)
+     (if rating   (equal (getf cd :rating) rating) t)
+     (if ripped-p (equal (getf cd :ripped) ripped) t))))
+
+; test
+(select (where :artist "Dixie Chicks" :rating 8))
+
+(defun update (selector-fn &key title artist rating (ripped nil ripped-p))
+  (setf *db*
+	(mapcar
+	 (lambda (row)
+		  (when (funcall selector-fn row)
+		    (if title    (setf (getf row :title)  title))
+		    (if artist   (setf (getf row :artist) artist))
+		    (if rating   (setf (getf row :rating) rating))
+		    (if ripped-p (setf (getf row :ripped) ripped)))
+		  row)
+	 *db*)))
+; test
+					; (update (where :artist "Dixie Chicks") :rating 11)
+
+(defun delete-rows (selector-fn)
+  (setf *db* (remove-if selector-fn *db*)))
